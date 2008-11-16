@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:padding="5px"
+    >
+
+<LinearLayout android:orientation="horizontal"
+    android:layout_width="fill_parent"
+    android:layout_height="wrap_content"
+    android:padding="5px"
+    android:gravity="center_horizontal"
+    >
+  <Button android:id="@+id/StartScan" android:padding="15px" android:layout_width="100px" android:layout_height="50px" android:text="Start"></Button>
+  <Button android:id="@+id/StopScan" android:padding="15px" android:layout_width="100px" android:layout_height="50px" android:text="Stop"></Button>
+</LinearLayout>
+    
+<TextView
+	android:id="@+id/scanresults"
+    android:layout_width="fill_parent" 
+    android:layout_height="wrap_content" 
+    android:text=""
+    /><TextView
+	android:id="@+id/textthing"
+    android:layout_width="fill_parent" 
+    android:layout_height="fill_parent" 
+    android:text="@string/hello"
+    />
+
+</LinearLayout>
