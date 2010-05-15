@@ -24,229 +24,229 @@ import android.net.wifi.WifiConfiguration;
 import java.util.List;
 
 public class GarageDoorActivity extends Activity {
-	private static final String TAG = "GarageDoorActivity";
+    private static final String TAG = "GarageDoorActivity";
 
-	private static final int MENU_OPEN = 2;
-	private static final int MENU_WIFI_OFF = 3;
-  private static final int MENU_JUST_SCAN = 4;
+    private static final int MENU_OPEN = 2;
+    private static final int MENU_WIFI_OFF = 3;
+    private static final int MENU_JUST_SCAN = 4;
 
-	private TextView textView;
-  private TextView scanResultTextView;
+    private TextView textView;
+    private TextView scanResultTextView;
 
-	private IntentFilter intentFilter;
+    private IntentFilter intentFilter;
 	
-	private Handler logHandler = new Handler() {
-    public void handleMessage(Message m) {
-      String logMessage = m.getData().getString("logmessage");
-      textView.setText(logMessage + "\n" + textView.getText());
-    }
-  };
+    private Handler logHandler = new Handler() {
+            public void handleMessage(Message m) {
+                String logMessage = m.getData().getString("logmessage");
+                textView.setText(logMessage + "\n" + textView.getText());
+            }
+        };
 
-	private IGarageScanService scanServiceStub = null;
+    private IGarageScanService scanServiceStub = null;
 
-	private ServiceConnection serviceConnection = new ServiceConnection() {
-	  public void onServiceConnected(ComponentName name, IBinder service) {
-	    scanServiceStub = IGarageScanService.Stub.asInterface(service);
-	    log("Service bound");
-	    checkScanningState();
-	    try {
-        scanServiceStub.registerCallback(garageCallback);
-      } catch (RemoteException e) {
-        e.printStackTrace();
-      }
-	  }
+    private ServiceConnection serviceConnection = new ServiceConnection() {
+            public void onServiceConnected(ComponentName name, IBinder service) {
+                scanServiceStub = IGarageScanService.Stub.asInterface(service);
+                log("Service bound");
+                checkScanningState();
+                try {
+                    scanServiceStub.registerCallback(garageCallback);
+                } catch (RemoteException e) {
+                    e.printStackTrace();
+                }
+            }
 
-	  public void onServiceDisconnected(ComponentName name) {
-	    scanServiceStub = null;
-	  };
+            public void onServiceDisconnected(ComponentName name) {
+                scanServiceStub = null;
+            };
 	};
 
 
-	private IGarageScanCallback garageCallback = new IGarageScanCallback.Stub() {
-    public void logToClient(String message) throws RemoteException {
-      log(message);
-    }
+    private IGarageScanCallback garageCallback = new IGarageScanCallback.Stub() {
+            public void logToClient(String message) throws RemoteException {
+                log(message);
+            }
 
-    public void onScanResults(String scanResults) throws RemoteException {
-      scanResultTextView.setText(scanResults);
-    }
+            public void onScanResults(String scanResults) throws RemoteException {
+                scanResultTextView.setText(scanResults);
+            }
 	};
 
-	/** Called when the activity is first created. */
-	@Override
+    /** Called when the activity is first created. */
+    @Override
 	public void onCreate(Bundle savedInstanceState) {
-	  super.onCreate(savedInstanceState);
-	  setContentView(R.layout.main);
-	  scanResultTextView = (TextView) findViewById(R.id.scanresults);
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.main);
+        scanResultTextView = (TextView) findViewById(R.id.scanresults);
 	  
-	  textView = (TextView) findViewById(R.id.textthing);
-	  textView.setText("Some test");
+        textView = (TextView) findViewById(R.id.textthing);
+        textView.setText("Some test");
 
-	  Button startScan = (Button) findViewById(R.id.StartScan);
-	  startScan.setOnClickListener(new OnClickListener() {
-	    public void onClick(View v) {
-	      startScanningService(false);
-	    }
-	  });
+        Button startScan = (Button) findViewById(R.id.StartScan);
+        startScan.setOnClickListener(new OnClickListener() {
+                public void onClick(View v) {
+                    startScanningService(false);
+                }
+            });
 
-	  Button stopScan = (Button) findViewById(R.id.StopScan);
-	  stopScan.setOnClickListener(new OnClickListener() {
-	    public void onClick(View v) {
-	      if (scanServiceStub == null) {
-	        textView.setText("service stub is null");
-	        return;
-	      }
-	      try {
-	        scanServiceStub.setScanning(false);
-	        scanResultTextView.setText("");
-	        log("Stopped scanning.");
-	      } catch (RemoteException e) {
-	        log("Exception changing state: " + e);
-	      }
-	    }
-	  });
+        Button stopScan = (Button) findViewById(R.id.StopScan);
+        stopScan.setOnClickListener(new OnClickListener() {
+                public void onClick(View v) {
+                    if (scanServiceStub == null) {
+                        textView.setText("service stub is null");
+                        return;
+                    }
+                    try {
+                        scanServiceStub.setScanning(false);
+                        scanResultTextView.setText("");
+                        log("Stopped scanning.");
+                    } catch (RemoteException e) {
+                        log("Exception changing state: " + e);
+                    }
+                }
+            });
 
-	  intentFilter = new IntentFilter();
-	  intentFilter.addAction(WifiManager.NETWORK_IDS_CHANGED_ACTION);
-	  intentFilter.addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION);
-	  intentFilter.addAction(WifiManager.SUPPLICANT_CONNECTION_CHANGE_ACTION);
-	  intentFilter.addAction(WifiManager.SUPPLICANT_STATE_CHANGED_ACTION);
-	  intentFilter.addAction(WifiManager.WIFI_STATE_CHANGED_ACTION);
-	}
+        intentFilter = new IntentFilter();
+        intentFilter.addAction(WifiManager.NETWORK_IDS_CHANGED_ACTION);
+        intentFilter.addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION);
+        intentFilter.addAction(WifiManager.SUPPLICANT_CONNECTION_CHANGE_ACTION);
+        intentFilter.addAction(WifiManager.SUPPLICANT_STATE_CHANGED_ACTION);
+        intentFilter.addAction(WifiManager.WIFI_STATE_CHANGED_ACTION);
+    }
 
-	protected void startScanningService(boolean debugMode) {
-	  if (scanServiceStub == null) {
+    protected void startScanningService(boolean debugMode) {
+        if (scanServiceStub == null) {
 	    log("Not bound to service.");
 	    return;
-	  }
-    try {
-      scanServiceStub.setDebugMode(debugMode);
-      scanResultTextView.setText("");
-      startService(new Intent(this, InRangeService.class));
-      if (debugMode) {
-        log("Scan-only mode started.");
-      } else {
-        log("Scanning mod started.");
-      }
-    } catch (RemoteException e) {
-      log("Exception changing state: " + e);
+        }
+        try {
+            scanServiceStub.setDebugMode(debugMode);
+            scanResultTextView.setText("");
+            startService(new Intent(this, InRangeService.class));
+            if (debugMode) {
+                log("Scan-only mode started.");
+            } else {
+                log("Scanning mod started.");
+            }
+        } catch (RemoteException e) {
+            log("Exception changing state: " + e);
+        }
     }
-  }
 
-  /**
-	 * Check if we're currently scanning and log a message about it.
-	 */
-	protected void checkScanningState() {
-	  if (scanServiceStub == null) {
+    /**
+     * Check if we're currently scanning and log a message about it.
+     */
+    protected void checkScanningState() {
+        if (scanServiceStub == null) {
 	    textView.setText("service stub is null");
-	  } else {
+        } else {
 	    boolean running;
 	    try {
-	      running = scanServiceStub.isScanning();
-	      textView.setText(running ? "Scanning." : "NOT scanning.");
+                running = scanServiceStub.isScanning();
+                textView.setText(running ? "Scanning." : "NOT scanning.");
 	    } catch (RemoteException e) {
-	      textView.setText("Exception error checking scanning: " + e);
+                textView.setText("Exception error checking scanning: " + e);
 	    }
-	  }
-	}
-
-	@Override
-	public void onResume() {
-	  super.onResume();
-	  textView.setText("onResume");
-	  bindService(new Intent(this, InRangeService.class),
-	      serviceConnection, Context.BIND_AUTO_CREATE);
-	}
-
-	@Override
-	public void onPause() {
-	  super.onPause();
-
-	  if (scanServiceStub != null) {
-      try {
-        scanServiceStub.unregisterCallback(garageCallback);
-      } catch (RemoteException e) {
-        e.printStackTrace();
-      }
-	  }
-	  
-	  if (serviceConnection != null) {
-	    unbindService(serviceConnection);
-	  }
-	}
-
-	View.OnClickListener createWifiAPairer(final String ssid) {
-	  return new OnClickListener() {
-	    public void onClick(View v) {
-	      Settings.System.putInt(getContentResolver(), Settings.System.WIFI_USE_STATIC_IP, 0);
-
-	      WifiManager wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
-	      List<WifiConfiguration> networks = wifiManager.getConfiguredNetworks();
-	      WifiConfiguration foundConfig = null;
-	      for (WifiConfiguration config : networks) {
-	        if (config.SSID.equals("\"" + ssid + "\"")) {
-	          foundConfig = config;
-	          break;
-	        }
-	        textView.setText(config.SSID + ", " + new Integer(config.SSID.length()));
-	      }
-	      if (foundConfig != null) {
-	        textView.setText(new StringBuilder().append(foundConfig.networkId));
-	        int n = 0;
-	        try {
-	          boolean success = wifiManager.enableNetwork(foundConfig.networkId, true);
-	          textView.setText(new Boolean(success).toString());
-	          if (success) {
-	            textView.setText("Connecting to: " + ssid);
-	          }
-	        } catch (Exception e) {
-	          textView.setText(e.toString() + ", " + n);
-	        }
-	      } else {
-	        textView.setText(ssid + " not found");
-	      }
-	    }
-	  };
-	}
-
-	@Override
-	public boolean onCreateOptionsMenu(Menu menu) {
-	  super.onCreateOptionsMenu(menu);
-	  menu.add(Menu.NONE, MENU_WIFI_OFF, 0, "Wifi Off");
-	  menu.add(Menu.NONE, MENU_OPEN, 0, "Open");
-	  menu.add(Menu.NONE, MENU_JUST_SCAN, 0, "Just Scan");
-	  return true;
-	}
-
-	@Override
-	public boolean onOptionsItemSelected(MenuItem item) {
-	  switch (item.getItemId()) {
-	    case MENU_OPEN:
-	      try {
-          scanServiceStub.openGarageNow();
-        } catch (RemoteException e) {
-          log(e.toString());
         }
-	      break;
-	    case MENU_WIFI_OFF:
-	      wifi().disconnect();
-	      break;
-	    case MENU_JUST_SCAN:
-	      startScanningService(true);
-	      break;
-	  }
-	  return true;
-	}
+    }
 
-	private WifiManager wifi() {
-	  return  (WifiManager) getSystemService(Context.WIFI_SERVICE);
-	}
+    @Override
+	public void onResume() {
+        super.onResume();
+        textView.setText("onResume");
+        bindService(new Intent(this, InRangeService.class),
+                    serviceConnection, Context.BIND_AUTO_CREATE);
+    }
 
-	private void log(String message) {
-	  Message m = new Message();
-	  Bundle b = new Bundle();
-	  b.putString("logmessage", message);
-	  m.setData(b);
-	  logHandler.sendMessage(m);
-	}
+    @Override
+	public void onPause() {
+        super.onPause();
+
+        if (scanServiceStub != null) {
+            try {
+                scanServiceStub.unregisterCallback(garageCallback);
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
+        }
+	  
+        if (serviceConnection != null) {
+	    unbindService(serviceConnection);
+        }
+    }
+
+    View.OnClickListener createWifiAPairer(final String ssid) {
+        return new OnClickListener() {
+	    public void onClick(View v) {
+                Settings.System.putInt(getContentResolver(), Settings.System.WIFI_USE_STATIC_IP, 0);
+
+                WifiManager wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
+                List<WifiConfiguration> networks = wifiManager.getConfiguredNetworks();
+                WifiConfiguration foundConfig = null;
+                for (WifiConfiguration config : networks) {
+                    if (config.SSID.equals("\"" + ssid + "\"")) {
+                        foundConfig = config;
+                        break;
+                    }
+                    textView.setText(config.SSID + ", " + new Integer(config.SSID.length()));
+                }
+                if (foundConfig != null) {
+                    textView.setText(new StringBuilder().append(foundConfig.networkId));
+                    int n = 0;
+                    try {
+                        boolean success = wifiManager.enableNetwork(foundConfig.networkId, true);
+                        textView.setText(new Boolean(success).toString());
+                        if (success) {
+                            textView.setText("Connecting to: " + ssid);
+                        }
+                    } catch (Exception e) {
+                        textView.setText(e.toString() + ", " + n);
+                    }
+                } else {
+                    textView.setText(ssid + " not found");
+                }
+	    }
+        };
+    }
+
+    @Override
+	public boolean onCreateOptionsMenu(Menu menu) {
+        super.onCreateOptionsMenu(menu);
+        menu.add(Menu.NONE, MENU_WIFI_OFF, 0, "Wifi Off");
+        menu.add(Menu.NONE, MENU_OPEN, 0, "Open");
+        menu.add(Menu.NONE, MENU_JUST_SCAN, 0, "Just Scan");
+        return true;
+    }
+
+    @Override
+	public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+        case MENU_OPEN:
+            try {
+                scanServiceStub.openGarageNow();
+            } catch (RemoteException e) {
+                log(e.toString());
+            }
+            break;
+        case MENU_WIFI_OFF:
+            wifi().disconnect();
+            break;
+        case MENU_JUST_SCAN:
+            startScanningService(true);
+            break;
+        }
+        return true;
+    }
+
+    private WifiManager wifi() {
+        return  (WifiManager) getSystemService(Context.WIFI_SERVICE);
+    }
+
+    private void log(String message) {
+        Message m = new Message();
+        Bundle b = new Bundle();
+        b.putString("logmessage", message);
+        m.setData(b);
+        logHandler.sendMessage(m);
+    }
 }
