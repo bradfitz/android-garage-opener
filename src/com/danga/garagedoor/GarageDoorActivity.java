@@ -6,6 +6,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
+import android.net.wifi.WifiConfiguration;
+import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
@@ -14,12 +17,10 @@ import android.os.RemoteException;
 import android.provider.Settings;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.View;
 import android.view.View.OnClickListener;
+import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
-import android.net.wifi.WifiManager;
-import android.net.wifi.WifiConfiguration;
 
 import java.util.List;
 
@@ -29,6 +30,7 @@ public class GarageDoorActivity extends Activity {
     private static final int MENU_OPEN = 2;
     private static final int MENU_WIFI_OFF = 3;
     private static final int MENU_JUST_SCAN = 4;
+    private static final int MENU_SETTINGS = 5;
 
     private TextView textView;
     private TextView scanResultTextView;
@@ -72,15 +74,19 @@ public class GarageDoorActivity extends Activity {
             }
 	};
 
+    private SharedPreferences getPrefs() {
+        return getSharedPreferences(Preferences.NAME, 0);
+    }
+
     /** Called when the activity is first created. */
     @Override
 	public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         setContentView(R.layout.main);
         scanResultTextView = (TextView) findViewById(R.id.scanresults);
-	  
+
         textView = (TextView) findViewById(R.id.textthing);
-        textView.setText("Some test");
 
         Button startScan = (Button) findViewById(R.id.StartScan);
         startScan.setOnClickListener(new OnClickListener() {
@@ -143,7 +149,8 @@ public class GarageDoorActivity extends Activity {
 	    boolean running;
 	    try {
                 running = scanServiceStub.isScanning();
-                textView.setText(running ? "Scanning." : "NOT scanning.");
+                String state = running ? "Scanning" : "NOT scanning";
+                textView.setText(state + "\nURL: " + getPrefs().getString(Preferences.KEY_URL, "<no_url>"));
 	    } catch (RemoteException e) {
                 textView.setText("Exception error checking scanning: " + e);
 	    }
@@ -213,8 +220,9 @@ public class GarageDoorActivity extends Activity {
 	public boolean onCreateOptionsMenu(Menu menu) {
         super.onCreateOptionsMenu(menu);
         menu.add(Menu.NONE, MENU_WIFI_OFF, 0, "Wifi Off");
-        menu.add(Menu.NONE, MENU_OPEN, 0, "Open");
+        menu.add(Menu.NONE, MENU_OPEN, 0, "Open Now");
         menu.add(Menu.NONE, MENU_JUST_SCAN, 0, "Just Scan");
+        menu.add(Menu.NONE, MENU_SETTINGS, 0, "Settings");
         return true;
     }
 
@@ -233,6 +241,9 @@ public class GarageDoorActivity extends Activity {
             break;
         case MENU_JUST_SCAN:
             startScanningService(true);
+            break;
+        case MENU_SETTINGS:
+            SettingsActivity.show(this);
             break;
         }
         return true;

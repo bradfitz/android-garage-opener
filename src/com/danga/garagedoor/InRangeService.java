@@ -8,6 +8,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
 import android.os.Handler;
@@ -64,6 +65,9 @@ public class InRangeService extends Service {
   
   // For debugging, this can be false to just do a constant scan without actually opening the garage.
   protected boolean debugMode = false;
+
+  // Which SSID we're scanning for.  null if unset in preferences.
+  private String mTargetSSID = null;
     
   // For listening to system updates of network & wifi connectivity state:
   private IntentFilter networkChangeIntents = new IntentFilter();
@@ -104,10 +108,10 @@ public class InRangeService extends Service {
             "AP: " + ap.SSID + ", " + ap.capabilities + ", freq=" + ap.frequency + ", "
             + "bssid=" + ap.BSSID + ", lev=" + ap.level);
         sb.append(ap.SSID + " == " + ap.level + "\n");
-        if (ap.SSID.equals("FitzPublic")) {
+
+        if (ap.SSID.equals(mTargetSSID)) {
           publicLevel = ap.level;
-        } else if (ap.SSID.equals("FitzPrivate")) {
-          privateLevel = ap.level;
+          Log.v(TAG, "Public SSID level = " + ap.level);
         }
       }
 
@@ -179,9 +183,13 @@ public class InRangeService extends Service {
     nm.notify(NOTIFY_ID_EVENT, n);		
   }
 
-  private void notifyError(String string) {
-    doNotification("Garage Error", string);
-    logToClients(string);
+    private void notifyError(String string) {
+        doNotification("Garage Error", string);
+        logToClients(string);
+    }
+
+  private SharedPreferences getPrefs() {
+    return getSharedPreferences(Preferences.NAME, 0);
   }
 
   // Returns true if the HTTP request was started.
@@ -194,11 +202,18 @@ public class InRangeService extends Service {
       Log.d(TAG, "Not opening garage door due to other outstanding HTTP request.");
       return false;
     }
-    final String urlBase = getString(R.string.garage_url);
+    final String urlBase = getPrefs().getString(Preferences.KEY_URL, null);
+    if (urlBase == null) {
+      Log.e(TAG, "No garage door URL configured.");
+      return false;
+    }
+
+    final String secretKey = getPrefs().getString(Preferences.KEY_SECRET, "");
+
     final HttpClient client = new DefaultHttpClient();
     Date now = new Date();
     long epochTime = now.getTime() / 1000;
-    String url = urlBase + "?t=" + epochTime + "&key=" +  hmacSha1(""+epochTime, getString(R.string.shared_key)); 
+    String url = urlBase + "?t=" + epochTime + "&key=" +  hmacSha1(""+epochTime, secretKey);
     
     Log.d(TAG, "Attempting open of: " + urlBase);
     logToClients("Sending HTTP request to " + url);
@@ -261,6 +276,9 @@ public class InRangeService extends Service {
       logToClients("Scanning already running.");
       return;
     }
+
+    mTargetSSID = getPrefs().getString(Preferences.KEY_SSID, null);
+    Log.d(TAG, "Scanning for SSID: " + mTargetSSID);
     
     cpuLock.acquire();
     logToClients("Garage wifi scan starting.");

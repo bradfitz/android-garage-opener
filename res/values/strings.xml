@@ -2,6 +2,13 @@
 <resources>
     <string name="hello">I am the Garage Door opener.</string>
     <string name="app_name">Garage Door Opener</string>
-    <string name="shared_key">foo_bar_some_secret_here</string>
-    <string name="garage_url">http://10.0.0.1/open-garage-script.cgi</string>
+
+    <string name="settings_url_title">Garage URL</string>
+    <string name="settings_url_summary">The garage opener's webserver endpoint</string>
+
+    <string name="settings_secret_title">Shared Secret</string>
+    <string name="settings_secret_summary">The password to open the garage</string>
+
+    <string name="settings_ssid_title">House SSID</string>
+    <string name="settings_ssid_summary">Your home's SSID to scan for</string>
 </resources>
