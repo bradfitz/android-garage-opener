@@ -5,19 +5,24 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.preference.CheckBoxPreference;
 import android.preference.EditTextPreference;
 import android.preference.ListPreference;
+import android.preference.Preference.OnPreferenceChangeListener;
 import android.preference.Preference;
 import android.preference.PreferenceActivity;
-import android.preference.Preference.OnPreferenceChangeListener;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
 
 public class SettingsActivity extends PreferenceActivity {
     private static final String TAG = "SettingsActivity";
+
+    private static final int MENU_HELP = 0;
 
     private EditTextPreference ssidPref;
     private EditTextPreference urlPref;
@@ -65,6 +70,25 @@ public class SettingsActivity extends PreferenceActivity {
     private void updatePreferenceSummaries() {
         updateSummary(urlPref, "URL to garage endpoint");
         updateSummary(ssidPref, "House wifi's SSID to look for");
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        super.onCreateOptionsMenu(menu);
+        menu.add(Menu.NONE, MENU_HELP, 0, "Help");
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+        case MENU_HELP:
+            final Intent intent = new Intent(Intent.ACTION_VIEW,
+                                             Uri.parse("http://bradfitz.com/garage-opener/"));
+            startActivity(intent);
+            break;
+        }
+        return true;
     }
 
     // Convenience method.

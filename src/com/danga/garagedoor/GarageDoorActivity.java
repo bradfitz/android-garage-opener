@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
+import android.net.Uri;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
@@ -31,6 +32,7 @@ public class GarageDoorActivity extends Activity {
     private static final int MENU_WIFI_OFF = 3;
     private static final int MENU_JUST_SCAN = 4;
     private static final int MENU_SETTINGS = 5;
+    private static final int MENU_HELP = 6;
 
     private TextView textView;
     private TextView scanResultTextView;
@@ -217,11 +219,12 @@ public class GarageDoorActivity extends Activity {
     }
 
     @Override
-	public boolean onCreateOptionsMenu(Menu menu) {
+    public boolean onCreateOptionsMenu(Menu menu) {
         super.onCreateOptionsMenu(menu);
         menu.add(Menu.NONE, MENU_WIFI_OFF, 0, "Wifi Off");
         menu.add(Menu.NONE, MENU_OPEN, 0, "Open Now");
         menu.add(Menu.NONE, MENU_JUST_SCAN, 0, "Just Scan");
+        menu.add(Menu.NONE, MENU_HELP, 0, "Help");
         menu.add(Menu.NONE, MENU_SETTINGS, 0, "Settings");
         return true;
     }
@@ -244,6 +247,11 @@ public class GarageDoorActivity extends Activity {
             break;
         case MENU_SETTINGS:
             SettingsActivity.show(this);
+            break;
+        case MENU_HELP:
+            final Intent intent = new Intent(Intent.ACTION_VIEW,
+                                             Uri.parse("http://bradfitz.com/garage-opener/"));
+            startActivity(intent);
             break;
         }
         return true;
