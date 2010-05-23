@@ -1,0 +1,73 @@
+#!/usr/bin/perl
+
+use strict;
+
+my $cmd = shift;
+usage() if @ARGV;
+
+my $PIDFILE = "/var/run/garage-server.pid";
+my $PASSFILE = "/etc/garagedoor.password";
+my $PORT = 8001;
+
+if ($cmd eq "start") {
+    start();
+    exit 0;
+}
+
+if ($cmd eq "stop") {
+    stop();
+    exit 0;
+}
+
+if ($cmd eq "restart") {
+    stop("failok");
+    start();
+    exit 0;
+}
+
+usage();
+
+sub usage {
+    die "Usage: garagedoor <start|stop|restart>\n";
+}
+
+sub start {
+    open(my $fh, $PASSFILE)
+	or die "Failed to file containing just garage password ($PASSFILE): $!\n";
+    my $password = do { local $/; <$fh>; };
+    chomp $password;
+    $ENV{GARAGE_SECRET} = $password or die "No password set in $PASSFILE.";
+    close($fh);
+
+    system("start-stop-daemon",
+	   "--start",
+	   "--pidfile", $PIDFILE,
+	   "--startas", "/usr/local/bin/garage-server",
+	   "--background",
+	   "--make-pidfile",
+
+	   # dialout group needed for /dev/ttyS0 (X10 access via heyu) on Debian:
+	   "--chuid", "nobody:dialout",
+
+	   # Args for garage-server:
+	   "--",
+	   "--listen=0.0.0.0:$PORT",
+	   ) and die "start-stop-daemon failed";
+    print "Started garage-server.\n";
+}
+
+sub stop {
+    my $fail_okay = shift;
+
+    my $err = system("start-stop-daemon",
+		     "--stop",
+		     "--pidfile", $PIDFILE,
+		     "-n", "garage-server");
+    if ($err) {
+	die "start-stop-daemon failed" unless $fail_okay;
+	print "garage-server not running?\n";
+    } else {
+	print "Stopped garage-server.\n";
+    }
+    unlink $PIDFILE;
+}
