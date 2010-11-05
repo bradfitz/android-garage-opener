@@ -4,14 +4,17 @@
 
 package main
 
-import "crypto/hmac"
-import "exec"
-import "fmt"
-import "http"
-import "os"
-import "strconv"
-import "time"
-import "flag"
+import (
+	"crypto/hmac"
+	"exec"
+	"flag"
+	"fmt"
+	"http"
+	"os"
+	"strconv"
+	"sync"
+	"time"
+)
 
 var listen *string = flag.String("listen", "0.0.0.0:8081", "host:port to listen on")
 var x10Unit *string = flag.String("x10unit", "f9", "X10 unit to toggle.")
@@ -19,6 +22,9 @@ var heyUPath *string = flag.String(
 	"heyupath", "/usr/local/bin/heyu", "Path to heyu binary")
 
 var sharedSecret string
+
+var lastOpenTime = int64(0)
+var lastOpenMutex sync.Mutex
 
 func GarageOpenError(conn http.ResponseWriter, err os.Error) {
 	fmt.Println("Error opening garage: ", err)
@@ -58,8 +64,17 @@ func HandleGarage(conn http.ResponseWriter, req *http.Request) {
                 return
 	}
 
-	fmt.Println("Opening garage door...")
+	lastOpenMutex.Lock()
+	defer lastOpenMutex.Unlock()
+	now := time.Seconds()
+	if lastOpenTime > now - 10 {
+		conn.WriteHeader(http.StatusBadRequest)
+                fmt.Fprintf(conn, "Too soon, considering this a dup.")
+		return
+	}
+	lastOpenTime = now
 
+	fmt.Println("Opening garage door...")
 	cmd, err := exec.Run(
 		*heyUPath,
 		[]string{"heyu", "on", *x10Unit},
