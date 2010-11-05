@@ -20,13 +20,13 @@ var heyUPath *string = flag.String(
 
 var sharedSecret string
 
-func GarageOpenError(conn *http.Conn, err os.Error) {
+func GarageOpenError(conn http.ResponseWriter, err os.Error) {
 	fmt.Println("Error opening garage: ", err)
 	conn.WriteHeader(http.StatusInternalServerError)
 	fmt.Fprintf(conn, "Error opening garage: %v", err)
 }
 
-func HandleGarage(conn *http.Conn, req *http.Request) {
+func HandleGarage(conn http.ResponseWriter, req *http.Request) {
 	timeString := req.FormValue("t")
 	requestTime, err := strconv.Atoi64(timeString)
 	if len(timeString) == 0 || err != nil {
@@ -90,11 +90,11 @@ func HandleGarage(conn *http.Conn, req *http.Request) {
 	fmt.Fprint(conn, "Opened.")
 	fmt.Printf("Garage opened at %v from %v\n",
 		time.LocalTime(),
-		conn.RemoteAddr)
+		conn.RemoteAddr())
 
 }
 
-func HandleRoot(conn *http.Conn, req *http.Request) {
+func HandleRoot(conn http.ResponseWriter, req *http.Request) {
 	fmt.Fprintf(conn, `
 Welcome to the 
 <a href='http://github.com/bradfitz/android-garage-opener'>

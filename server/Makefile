@@ -1,4 +1,8 @@
-garage-server: garage-server.go
-	8g garage-server.go
-	8l -o garage-server garage-server.8
+include $(GOROOT)/src/Make.inc
+
+TARG=garage-server
+GOFILES=\
+        garage-server.go\
+
+include $(GOROOT)/src/Make.cmd
 
