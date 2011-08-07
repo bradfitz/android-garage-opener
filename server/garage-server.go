@@ -41,7 +41,7 @@ func HandleGarage(conn http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if requestTime < time.Seconds() - 60 {
+	if requestTime < time.Seconds()-60 {
 		conn.WriteHeader(http.StatusForbidden)
 		fmt.Fprintf(conn, "Request too old.")
 		return
@@ -61,51 +61,30 @@ func HandleGarage(conn http.ResponseWriter, req *http.Request) {
 	if key != expectedHash {
 		conn.WriteHeader(http.StatusForbidden)
 		fmt.Fprintf(conn, "Signature fail.")
-                return
+		return
 	}
 
 	lastOpenMutex.Lock()
 	defer lastOpenMutex.Unlock()
 	now := time.Seconds()
-	if lastOpenTime > now - 10 {
+	if lastOpenTime > now-10 {
 		conn.WriteHeader(http.StatusBadRequest)
-                fmt.Fprintf(conn, "Too soon, considering this a dup.")
+		fmt.Fprintf(conn, "Too soon, considering this a dup.")
 		return
 	}
 	lastOpenTime = now
 
 	fmt.Println("Opening garage door...")
-	cmd, err := exec.Run(
-		*heyUPath,
-		[]string{"heyu", "on", *x10Unit},
-		os.Environ(),
-		"/",
-		exec.DevNull, // stdin
-		exec.DevNull, // stdout
-		exec.MergeWithStdout) // stderr
+	err = exec.Command(*heyUPath, "on", *x10Unit).Run()
 	if err != nil {
 		GarageOpenError(conn, err)
-		return
-	}
-
-	fmt.Printf("Started heyu with pid %v\n", cmd.Pid)
-	waitmsg, err := cmd.Wait(0)
-	if err != nil {
-		GarageOpenError(conn, err)
-                return
-	}
-	fmt.Printf("WaitMsg: %v\n", waitmsg)
-
-	if waitmsg.WaitStatus != 0 {
-		conn.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(conn, "x10 command returned error opening garage: %v", err)
 		return
 	}
 
 	fmt.Fprint(conn, "Opened.")
 	fmt.Printf("Garage opened at %v from %v\n",
 		time.LocalTime(),
-		conn.RemoteAddr())
+		req.RemoteAddr)
 
 }
 
@@ -114,7 +93,7 @@ func HandleRoot(conn http.ResponseWriter, req *http.Request) {
 Welcome to the 
 <a href='http://github.com/bradfitz/android-garage-opener'>
 Android garage door opener</a>
-server.`);
+server.`)
 }
 
 func main() {
