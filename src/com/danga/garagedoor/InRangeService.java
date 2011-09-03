@@ -9,6 +9,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
 import android.os.Handler;
@@ -21,6 +23,8 @@ import android.util.Log;
 import android.widget.Toast;
 
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -53,6 +57,7 @@ public class InRangeService extends Service {
   private Handler handler = new Handler();
 
   private Vibrator vibrator;
+  private ConnectivityManager connMan;
   private WifiManager.WifiLock wifiLock;
   private PowerManager.WakeLock cpuLock;
   
@@ -152,8 +157,9 @@ public class InRangeService extends Service {
   @Override
   public void onCreate() {
     super.onCreate();
-    wifiLock = wifi().createWifiLock("GarageWifiLock");
+    wifiLock = wifi().createWifiLock(WifiManager.WIFI_MODE_SCAN_ONLY, "GarageWifiLock");
     vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+    connMan = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
     
     networkChangeIntents.addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION);
     networkChangeIntents.addAction(WifiManager.WIFI_STATE_CHANGED_ACTION);
@@ -209,6 +215,11 @@ public class InRangeService extends Service {
     }
 
     final String secretKey = getPrefs().getString(Preferences.KEY_SECRET, "");
+
+    // We already did this before, but it might not have set the set
+    // the route, if it was still enabling the 3G connection.  We do it again
+    // which is likely a no-op, but might cause the route to be created.
+    forceMobileConnection();
 
     final HttpClient client = new DefaultHttpClient();
     Date now = new Date();
@@ -270,12 +281,71 @@ public class InRangeService extends Service {
     startScanning();
   }
 
+  private String getGarageIP() {
+	final String urlBase = getPrefs().getString(Preferences.KEY_URL, null);
+	if (urlBase == null) {
+	    return null;
+	}
+	if (!urlBase.toLowerCase().startsWith("http://")) {
+	    return null;
+	}
+	int slash = urlBase.indexOf("/", "http://".length());
+	if (slash == -1) {
+	    return null;
+	}
+	String hostName = urlBase.substring("http://".length(), slash);
+	Log.d(TAG, "hostname = " + hostName);
+	if (hostName.length() == 0) {
+	    return null;
+	}
+	for (int i = 0; i < hostName.length(); i++) {
+	    char c = hostName.charAt(i);
+	    if (c != '.' && (c < '0' || c > '9')) {
+		return null;
+	    }
+	}
+	return hostName;
+  }
+
+  private void forceMobileConnection() {
+      String ipAddress = getGarageIP();
+      Log.d(TAG, "IP to force to mobile: " + ipAddress);
+      if (ipAddress == null) {
+	  // Note: just lazy and don't want to block here on a DNS lookup.
+	  // Assume the user has configured an IP address in the settings,
+	  // like I have.  (it's faster, avoiding a DNS lookup)
+	  Log.d(TAG, "Not forcing a mobile connection; URL doesn't have an IP hostname");
+	  return;
+      }
+      NetworkInfo.State state = connMan.getNetworkInfo(ConnectivityManager.TYPE_MOBILE_HIPRI).getState();
+      Log.d(TAG, "TYPE_MOBILE_HIPRI state = " + state);
+
+      int res = connMan.startUsingNetworkFeature(ConnectivityManager.TYPE_MOBILE, "enableHIPRI");
+      Log.d(TAG, "enableHIPRI = " + res);
+
+      InetAddress inetAddress;
+      try {
+	  inetAddress = InetAddress.getByName(ipAddress);
+      } catch (UnknownHostException e) {
+	  return;
+      }
+      byte[] addrBytes = inetAddress.getAddress();
+      int addr =  ((addrBytes[3] & 0xff) << 24)
+	  | ((addrBytes[2] & 0xff) << 16)
+	  | ((addrBytes[1] & 0xff) << 8 )
+	  |  (addrBytes[0] & 0xff);
+      boolean reqRes = connMan.requestRouteToHost(ConnectivityManager.TYPE_MOBILE_HIPRI, addr);
+      Log.d(TAG, "requestRouteToHost (" + addr + ") = " + reqRes);
+  }
+    
   private void startScanning() {
     Log.d(TAG, "startScanning()");
     if (!isScanning.compareAndSet(false, true)) {
       logToClients("Scanning already running.");
       return;
     }
+
+    forceMobileConnection();
 
     mTargetSSID = getPrefs().getString(Preferences.KEY_SSID, null);
     Log.d(TAG, "Scanning for SSID: " + mTargetSSID);
@@ -310,6 +380,7 @@ public class InRangeService extends Service {
   
   private void stopScanning() {
     Log.d(TAG, "stopScanning()");
+    shouldOpen.set(false);
     if (!isScanning.compareAndSet(true, false)) {
       logToClients("Scanning was already stopped.");
       return;
@@ -320,6 +391,7 @@ public class InRangeService extends Service {
     wifiLock.release();
     unregisterReceiver(onScanResult);
     notificationManager().cancel(NOTIFY_ID_SCANNING);
+    connMan.stopUsingNetworkFeature(ConnectivityManager.TYPE_MOBILE, "enableHIPRI");
   }
 
   private synchronized void logToClients(String string) {
