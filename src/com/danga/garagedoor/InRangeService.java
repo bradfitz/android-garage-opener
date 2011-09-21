@@ -202,10 +202,12 @@ public class InRangeService extends Service {
   private boolean openGarage() {
     if (!shouldOpen.get() ) {
       Log.e(TAG, "openGarage() called but shouldOpen isn't true");
+      stopMobileData();
       return false;      
     }
     if (!httpRequestOustanding.compareAndSet(false, true)) {
       Log.d(TAG, "Not opening garage door due to other outstanding HTTP request.");
+      stopMobileData();
       return false;
     }
     final String urlBase = getPrefs().getString(Preferences.KEY_URL, null);
@@ -257,6 +259,7 @@ public class InRangeService extends Service {
           retryOpenGarageSoon();
         } finally {
           httpRequestOustanding.set(false);
+          stopMobileData();
         }
       }
     };
@@ -381,6 +384,7 @@ public class InRangeService extends Service {
   private void stopScanning() {
     Log.d(TAG, "stopScanning()");
     shouldOpen.set(false);
+    stopMobileData();
     if (!isScanning.compareAndSet(true, false)) {
       logToClients("Scanning was already stopped.");
       return;
@@ -391,6 +395,9 @@ public class InRangeService extends Service {
     wifiLock.release();
     unregisterReceiver(onScanResult);
     notificationManager().cancel(NOTIFY_ID_SCANNING);
+  }
+
+  private void stopMobileData() {
     connMan.stopUsingNetworkFeature(ConnectivityManager.TYPE_MOBILE, "enableHIPRI");
   }
 
