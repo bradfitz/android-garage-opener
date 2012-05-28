@@ -25,6 +25,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/bradfitz/android-garage-opener/anpher/parcel"
 )
@@ -39,14 +40,100 @@ type App interface {
 type Ctx struct {
 	br *bufio.Reader // just for Peek debugging; use the parcel reader.
 	pr *parcel.Reader
+
+	outmu sync.Mutex
+	errmu sync.Mutex
+
+	mu sync.Mutex
+	cb map[int]func(Event)
 }
 
 func (c *Ctx) Logf(format string, args ...interface{}) {
-	logf(format, args...)
+	if !strings.HasSuffix(format, "\n") {
+		format += "\n"
+	}
+	c.errmu.Lock()
+	defer c.errmu.Unlock()
+	fmt.Fprintf(os.Stderr, format, args...)
 }
 
 func (c *Ctx) Screenf(format string, args ...interface{}) {
-	screenf(format, args...)
+	if !strings.HasSuffix(format, "\n") {
+		format += "\n"
+	}
+	c.outmu.Lock()
+	defer c.outmu.Unlock()
+	fmt.Printf(format, args...)
+}
+
+func (c *Ctx) writeParcel(p *parcel.Parcel) {
+	c.outmu.Lock()
+	defer c.outmu.Unlock()
+	b := p.Bytes()
+	_, err := fmt.Printf("PARCEL:%d\n", len(b))
+	check(err)
+	_, err = os.Stdout.Write(b)
+	check(err)
+}
+
+func check(e error) {
+	if e != nil {
+		panic(e)
+	}
+}
+
+func (c *Ctx) addQueryCallback(txId int, cb func(Event)) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.cb == nil {
+		c.cb = make(map[int]func(Event))
+	}
+	c.cb[txId] = cb
+}
+
+func (c *Ctx) queryCallback(txId int) func(Event) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.cb[txId]
+}
+
+func (c *Ctx) query(txId int, p *parcel.Parcel, cb func(Event)) {
+	donec := make(chan bool)
+	c.addQueryCallback(txId, func(e Event) {
+		cb(e)
+		c.mu.Lock()
+		delete(c.cb, txId)
+		c.mu.Unlock()
+		donec <- true
+	})
+	c.writeParcel(p)
+	<-donec
+}
+
+var (
+	idMu   sync.Mutex
+	nextId = int(time.Now().Unix()) // minor protection against child restarting and reusing same ids
+)
+
+// nextTxId allocates a new transaction id for doing a query to the parent.
+func nextTxId() int {
+	idMu.Lock()
+	defer idMu.Unlock()
+	nextId++
+	return nextId
+}
+
+func (c *Ctx) FindViewId(name string) (id int, ok bool) {
+	txId := nextTxId()
+	p := parcel.New()
+	p.WriteString("getResId")
+	p.WriteString("name")
+	p.WriteInt32(int32(id))
+
+	c.query(txId, p, func(evt Event) {
+
+	})
+	return
 }
 
 // Run runs the app.
@@ -63,6 +150,16 @@ func Run(app App) {
 		if err != nil {
 			log.Fatalf("ReadEvent: %v", err)
 		}
+
+		if resEvent, ok := evt.(replyEvent); ok {
+			txId := resEvent.txId()
+			fn := ctx.queryCallback(txId)
+			go fn(evt)
+			continue
+		}
+
+		// TODO: process events serially in one separate goroutine, not one
+		// per event.
 		go app.HandleEvent(ctx, evt)
 	}
 }
@@ -70,6 +167,11 @@ func Run(app App) {
 type Event interface {
 	String() string
 	read(r *parcel.Reader) error
+}
+
+type replyEvent interface {
+	Event
+	txId() int
 }
 
 // A ClickEvent occurs when a widget is clicked.
@@ -126,7 +228,7 @@ var eventCtor = map[string]func() Event{
 func (ctx *Ctx) readEvent() (Event, error) {
 	eventName, err := ctx.pr.ReadString()
 	peekBuf, _ := ctx.br.Peek(ctx.br.Buffered())
-	logf("got event name %q, %v; peek = %q", eventName, err, peekBuf)
+	ctx.Logf("got event name %q, %v; peek = %q", eventName, err, peekBuf)
 	if err != nil {
 		return nil, err
 	}
@@ -140,27 +242,4 @@ func (ctx *Ctx) readEvent() (Event, error) {
 		return nil, err
 	}
 	return evt, nil
-}
-
-var (
-	outmu sync.Mutex
-	errmu sync.Mutex
-)
-
-func logf(format string, args ...interface{}) {
-	errmu.Lock()
-	defer errmu.Unlock()
-	if !strings.HasSuffix(format, "\n") {
-		format += "\n"
-	}
-	fmt.Fprintf(os.Stderr, format, args...)
-}
-
-func screenf(format string, args ...interface{}) {
-	outmu.Lock()
-	defer outmu.Unlock()
-	if !strings.HasSuffix(format, "\n") {
-		format += "\n"
-	}
-	fmt.Printf(format, args...)
 }

@@ -23,5 +23,10 @@ func (a *garageTestApp) HandleEvent(ctx *anpher.Ctx, evt anpher.Event) {
 
 	if ce, ok := evt.(*anpher.ClickEvent); ok {
 		ctx.Screenf("Clicked! evt=%#v", ce)
+
+		id, ok := ctx.FindViewId("button2")
+		if ok && id == ce.Id {
+			ctx.Screenf("You clicked bar, which has id %d", id)
+		}
 	}
 }
