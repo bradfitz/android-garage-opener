@@ -20,6 +20,43 @@ import (
 	"unsafe"
 )
 
+type Parcel struct {
+	b []byte
+}
+
+func New() *Parcel {
+	return new(Parcel)
+}
+
+func (p *Parcel) Bytes() []byte {
+	return p.b
+}
+
+func (p *Parcel) WriteString(s string) {
+	p.WriteInt32(int32(len(s)))
+	for i := 0; i < len(s); i++ {
+		p.b = append(p.b, s[i])
+		p.b = append(p.b, 0)
+	}
+}
+
+func (p *Parcel) align(n int) {
+	mod := len(p.b) % n
+	if mod == 0 {
+		return
+	}
+	for i := 0; i < (n - mod); i++ {
+		p.b = append(p.b, 0)
+	}
+}
+
+func (p *Parcel) WriteInt32(v int32) {
+	p.align(4)
+	var buf [4]byte
+	*(*int32)(unsafe.Pointer(&buf[0])) = v
+	p.b = append(p.b, buf[:]...)
+}
+
 func NewReader(br *bufio.Reader) *Reader {
 	return &Reader{br: br}
 }
