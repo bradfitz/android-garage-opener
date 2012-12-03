@@ -20,8 +20,8 @@ import (
 var (
 	listen   = flag.String("listen", "0.0.0.0:8081", "host:port to listen on")
 	x10Unit  = flag.String("x10unit", "f9", "X10 unit to toggle.")
-	heyUPath = flag.String(
-		"heyupath", "/usr/local/bin/heyu", "Path to heyu binary")
+	heyUPath = flag.String("heyupath", "/usr/local/bin/heyu", "Path to heyu binary")
+	altBin   = flag.String("togglebin", "", "If non-empty, the alterate garage toggle binary to use.")
 )
 
 var sharedSecret string
@@ -78,7 +78,11 @@ func HandleGarage(conn http.ResponseWriter, req *http.Request) {
 	lastOpenTime = now
 
 	fmt.Println("Opening garage door...")
-	err = exec.Command(*heyUPath, "on", *x10Unit).Run()
+	if *altBin != "" {
+		err = exec.Command(*altBin).Run()
+	} else {
+		err = exec.Command(*heyUPath, "on", *x10Unit).Run()
+	}
 	if err != nil {
 		GarageOpenError(conn, err)
 		return
