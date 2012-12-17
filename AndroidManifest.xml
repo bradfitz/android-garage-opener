@@ -4,7 +4,7 @@
           android:versionName="1.0"
           package="com.danga.garagedoor">
 
-  <uses-sdk android:minSdkVersion="8" />
+  <uses-sdk android:minSdkVersion="17" android:targetSdkVersion="17" />
 
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
@@ -29,6 +29,14 @@
         <service android:exported="false" android:label="Garage Open-When-In-Range Service"
         	android:name="com.danga.garagedoor.InRangeService">
         </service>
+        
+        <receiver android:name="GarageOpenAppWidgetProvider" >
+			<intent-filter>
+				    <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+			</intent-filter>
+			<meta-data android:name="android.appwidget.provider"
+			           android:resource="@xml/appwidget_info" />
+		</receiver>
 
     </application>
 </manifest> 

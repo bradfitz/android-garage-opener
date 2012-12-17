@@ -11,4 +11,7 @@
 
     <string name="settings_ssid_title">House SSID</string>
     <string name="settings_ssid_summary">Your home\'s SSID to scan for</string>
+    
+    <string name="text_button_start">Start</string>
+    <string name="text_button_stop">Stop</string>
 </resources>

@@ -3,17 +3,25 @@
     android:orientation="vertical"
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
-    android:padding="5px"
+    android:padding="5dp"
     >
 
 <LinearLayout android:orientation="horizontal"
     android:layout_width="fill_parent"
     android:layout_height="wrap_content"
-    android:padding="5px"
+    android:padding="5dp"
     android:gravity="center_horizontal"
     >
-  <Button android:id="@+id/StartScan" android:padding="15px" android:layout_width="100px" android:layout_height="50px" android:text="Start"></Button>
-  <Button android:id="@+id/StopScan" android:padding="15px" android:layout_width="100px" android:layout_height="50px" android:text="Stop"></Button>
+
+  <Button
+      android:id="@+id/StartScan"
+      android:layout_width="100dp"
+      android:layout_height="50dp"
+      android:padding="1dp"
+      android:text="@string/text_button_start" >
+</Button>
+
+  <Button android:id="@+id/StopScan" android:padding="1dp" android:layout_width="100dp" android:layout_height="50dp" android:text="@string/text_button_stop"></Button>
 </LinearLayout>
     
 <TextView
