@@ -13,6 +13,7 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.PowerManager;
@@ -28,6 +29,7 @@ import java.net.UnknownHostException;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 import javax.crypto.Mac;
 import javax.crypto.SecretKey;
@@ -43,6 +45,9 @@ import org.apache.http.impl.client.DefaultHttpClient;
 
 public class InRangeService extends Service {
 
+	public static final String EXTRA_KEY_OPEN_TYPE = "open_type";
+	public static final String EXTRA_OPEN_TYPE_IF_IN_RANGE = "if_in_range";
+	
   private static final String TAG = "InRangeService";
   private static final int NOTIFY_ID_SCANNING = 1;
   private static final int NOTIFY_ID_EVENT = 2;
@@ -53,6 +58,10 @@ public class InRangeService extends Service {
   private AtomicBoolean shouldOpen = new AtomicBoolean(false);
   private AtomicBoolean httpRequestOustanding = new AtomicBoolean(false);
 
+  // openImmediatelyBefore, if non-zero, specifies that we're in open-immediately-if-in-range
+  // mode.  The long value is the time (unix millis) at which we should stop scanning.
+  private AtomicLong openImmediatelyBefore = new AtomicLong(0);
+  
   // A message loop handler to post runnables to in the future:
   private Handler handler = new Handler();
 
@@ -126,7 +135,21 @@ public class InRangeService extends Service {
       }
       sendScanToClients(sb.toString());
 
-      if (!debugMode && inRange && outOfRangeScanReceived.get()) {
+      long oib = openImmediatelyBefore.get();
+      if (oib != 0) {
+    	  if (System.currentTimeMillis() > oib) {
+    		  openImmediatelyBefore.set(0);
+    		  handler.post(new Runnable() {
+    	            public void run() {
+    	            	stopScanning();
+    	            }
+    		  });
+    		  return;
+    	  }
+    	  if (inRange) {
+    		  stopScanningAndOpenGarage();
+    	  }
+      } else if (!debugMode && inRange && outOfRangeScanReceived.get()) {
         stopScanningAndOpenGarage();
       } else if (isScanning.get()) {
         // start scanning again in a second, if a timer's not already outstanding
@@ -281,6 +304,13 @@ public class InRangeService extends Service {
   public void onStart(Intent intent, int startId) {
     super.onStart(intent, startId);
     Log.d(TAG, "onStart");
+    Bundle extras = intent.getExtras();
+    openImmediatelyBefore.set(0);
+    if (extras != null) {
+    	if (EXTRA_OPEN_TYPE_IF_IN_RANGE.equals(extras.getString(EXTRA_KEY_OPEN_TYPE))) {
+    		openImmediatelyBefore.set(System.currentTimeMillis() + 10000);
+    	}
+    }
     startScanning();
   }
 

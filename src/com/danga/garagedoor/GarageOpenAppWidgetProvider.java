@@ -12,6 +12,8 @@ public class GarageOpenAppWidgetProvider extends AppWidgetProvider {
 
 	private static final String TAG = "GarageWidget";
 	
+	private static final String ACTION_OPEN_NOW = "OPEN_GARAGE_NOW";
+
 	@Override
 	public void onDeleted(Context context, int[] appWidgetIds) {
 		super.onDeleted(context, appWidgetIds);
@@ -28,6 +30,11 @@ public class GarageOpenAppWidgetProvider extends AppWidgetProvider {
 	public void onReceive(Context context, Intent intent) {
 		super.onReceive(context, intent);
 		Log.d(TAG, "onReceive: " + intent);
+		if (ACTION_OPEN_NOW.equals(intent.getAction())) {
+			Intent in = new Intent(context, InRangeService.class);
+			in.putExtra(InRangeService.EXTRA_KEY_OPEN_TYPE, InRangeService.EXTRA_OPEN_TYPE_IF_IN_RANGE);
+			context.startService(in);
+		}
 	}
 
 	@Override
@@ -41,7 +48,7 @@ public class GarageOpenAppWidgetProvider extends AppWidgetProvider {
 			RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget);
 			
 			Intent intent = new Intent(context, getClass());
-			intent.setAction("OPEN_GARAGE_NOW");
+			intent.setAction(ACTION_OPEN_NOW);
 			views.setOnClickPendingIntent(R.id.btn_widget_open, PendingIntent.getBroadcast(context, 0, intent, 0));
 			
 			appWidgetManager.updateAppWidget(appWidgetId, views);
