@@ -147,6 +147,7 @@ public class InRangeService extends Service {
 					return;
 				}
 				if (inRange) {
+					openImmediatelyBefore.set(0);
 					stopScanningAndOpenGarage();
 				}
 			} else if (!debugMode && inRange && outOfRangeScanReceived.get()) {
@@ -304,11 +305,13 @@ public class InRangeService extends Service {
 	public void onStart(Intent intent, int startId) {
 		super.onStart(intent, startId);
 		Log.d(TAG, "onStart");
-		Bundle extras = intent.getExtras();
-		openImmediatelyBefore.set(0);
-		if (extras != null) {
-			if (EXTRA_OPEN_TYPE_IF_IN_RANGE.equals(extras.getString(EXTRA_KEY_OPEN_TYPE))) {
-				openImmediatelyBefore.set(System.currentTimeMillis() + 10000);
+		if (intent != null) {
+	 		Bundle extras = intent.getExtras();
+			openImmediatelyBefore.set(0);
+			if (extras != null) {
+				if (EXTRA_OPEN_TYPE_IF_IN_RANGE.equals(extras.getString(EXTRA_KEY_OPEN_TYPE))) {
+					openImmediatelyBefore.set(System.currentTimeMillis() + 10000);
+				}
 			}
 		}
 		startScanning();
