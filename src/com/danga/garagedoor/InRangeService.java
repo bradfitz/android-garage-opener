@@ -358,8 +358,6 @@ public class InRangeService extends Service {
 
     outOfRangeScanReceived.set(false);
     shouldOpen.set(false);
-
-    setForeground(true);  // don't swap this out.
     
     Toast.makeText(this, "Garage Scan Started", Toast.LENGTH_SHORT).show();
     
@@ -390,7 +388,6 @@ public class InRangeService extends Service {
       return;
     }
     cpuLock.release();
-    setForeground(false);
     logToClients("Stopping scanning.");
     wifiLock.release();
     unregisterReceiver(onScanResult);
