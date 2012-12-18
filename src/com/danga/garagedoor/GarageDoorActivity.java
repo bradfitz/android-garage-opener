@@ -130,7 +130,9 @@ public class GarageDoorActivity extends Activity {
 		try {
 			scanServiceStub.setDebugMode(debugMode);
 			scanResultTextView.setText("");
-			startService(new Intent(this, InRangeService.class));
+			Intent startScanning = new Intent(this, InRangeService.class);
+			startScanning.setAction(InRangeService.ACTION_START_SCANNING);
+			startService(startScanning);
 			if (debugMode) {
 				log("Scan-only mode started.");
 			} else {

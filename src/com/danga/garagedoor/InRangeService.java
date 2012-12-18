@@ -47,6 +47,7 @@ public class InRangeService extends Service {
 
 	public static final String EXTRA_KEY_OPEN_TYPE = "open_type";
 	public static final String EXTRA_OPEN_TYPE_IF_IN_RANGE = "if_in_range";
+	public static final String ACTION_START_SCANNING = "START_SCANNING";
 
 	private static final String TAG = "InRangeService";
 	private static final int NOTIFY_ID_SCANNING = 1;
@@ -170,6 +171,12 @@ public class InRangeService extends Service {
 	@Override
 	public IBinder onBind(Intent arg0) {
 		return scanService;
+	}
+
+	@Override
+	public boolean onUnbind(Intent intent) {
+		Log.d(TAG, "onUnbind: " + intent);
+		return super.onUnbind(intent);
 	}
 
 	public void onDestroy() {
@@ -302,19 +309,34 @@ public class InRangeService extends Service {
 	}
 
 	@Override
-	public void onStart(Intent intent, int startId) {
-		super.onStart(intent, startId);
-		Log.d(TAG, "onStart");
+	public int onStartCommand(Intent intent, int flags, int startId) {
+		super.onStartCommand(intent, flags, startId);
+		openImmediatelyBefore.set(0);
+
+		Log.d(TAG, "onStart; due to: intent=" + intent);
+		boolean wantScan = false;
 		if (intent != null) {
+			if (ACTION_START_SCANNING.equals(intent.getAction())) {
+				wantScan = true;
+			}
+			Log.d(TAG, "onStart; intentAction="+ intent.getAction());
 	 		Bundle extras = intent.getExtras();
-			openImmediatelyBefore.set(0);
+			Log.d(TAG, "onStart; intentExtras=" + extras);
 			if (extras != null) {
 				if (EXTRA_OPEN_TYPE_IF_IN_RANGE.equals(extras.getString(EXTRA_KEY_OPEN_TYPE))) {
 					openImmediatelyBefore.set(System.currentTimeMillis() + 10000);
+					wantScan = true;
 				}
 			}
 		}
-		startScanning();
+
+		if (wantScan) {
+			startScanning();	
+		} else {
+			Log.d(TAG, "bullshit onStart; want to stop this service.");
+			stopSelfResult(startId);
+		}
+		return START_STICKY;
 	}
 
 	private String getGarageIP() {
@@ -402,7 +424,8 @@ public class InRangeService extends Service {
 						new Intent(this, GarageDoorActivity.class), 0));
 		notificationManager().cancel(NOTIFY_ID_EVENT);
 		notificationManager().notify(NOTIFY_ID_SCANNING, n);
-
+		startForeground(NOTIFY_ID_SCANNING, n);
+		
 		wifiLock.acquire();
 		registerReceiver(onScanResult, scanResultIntentFilter);
 		wifi().startScan();
@@ -424,7 +447,9 @@ public class InRangeService extends Service {
 		logToClients("Stopping scanning.");
 		wifiLock.release();
 		unregisterReceiver(onScanResult);
+		stopForeground(true);
 		notificationManager().cancel(NOTIFY_ID_SCANNING);
+		stopSelf();
 	}
 
 	private void stopMobileData() {
