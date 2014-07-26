@@ -7,8 +7,10 @@ package main
 import (
 	"crypto/hmac"
 	"crypto/sha1"
+	"errors"
 	"flag"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -18,42 +20,45 @@ import (
 )
 
 var (
-	listen   = flag.String("listen", "0.0.0.0:8081", "host:port to listen on")
-	x10Unit  = flag.String("x10unit", "f9", "X10 unit to toggle.")
-	heyUPath = flag.String("heyupath", "/usr/local/bin/heyu", "Path to heyu binary")
-	altBin   = flag.String("togglebin", "", "If non-empty, the alterate garage toggle binary to use.")
+	listen = flag.String("listen", "0.0.0.0:8081", "host:port to listen on")
+	altBin = flag.String("togglebin", "", "If non-empty, the alterate garage toggle binary to use.")
 )
+
+// openGarage is overridden by one of the alternate files.
+var openGarage func() error
 
 var sharedSecret string
 
-var lastOpenTime time.Time
-var lastOpenMutex sync.Mutex
+var (
+	lastOpenTime  time.Time
+	lastOpenMutex sync.Mutex
+)
 
-func GarageOpenError(conn http.ResponseWriter, err error) {
+func garageOpenError(rw http.ResponseWriter, err error) {
 	fmt.Println("Error opening garage: ", err)
-	conn.WriteHeader(http.StatusInternalServerError)
-	fmt.Fprintf(conn, "Error opening garage: %v", err)
+	rw.WriteHeader(http.StatusInternalServerError)
+	fmt.Fprintf(rw, "Error opening garage: %v", err)
 }
 
-func HandleGarage(conn http.ResponseWriter, req *http.Request) {
+func handleGarage(rw http.ResponseWriter, req *http.Request) {
 	timeString := req.FormValue("t")
 	requestTime, err := strconv.ParseInt(timeString, 10, 64)
 	if len(timeString) == 0 || err != nil {
-		conn.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(conn, "Missing/bogus 't' query parameter.")
+		rw.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(rw, "Missing/bogus 't' query parameter.")
 		return
 	}
 
-	if time.Unix(requestTime, 0).Before(time.Now().Add(-60 * time.Second)) {
-		conn.WriteHeader(http.StatusForbidden)
-		fmt.Fprintf(conn, "Request too old.")
+	if time.Unix(requestTime, 0).Before(time.Now().Add(-300 * time.Second)) {
+		rw.WriteHeader(http.StatusForbidden)
+		fmt.Fprintf(rw, "Request too old.")
 		return
 	}
 
 	key := req.FormValue("key")
 	if len(key) == 0 {
-		conn.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(conn, "Missing 'key' query parameter.")
+		rw.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(rw, "Missing 'key' query parameter.")
 		return
 	}
 
@@ -62,8 +67,8 @@ func HandleGarage(conn http.ResponseWriter, req *http.Request) {
 	expectedHash := fmt.Sprintf("%40x", secretHasher.Sum(nil))
 
 	if key != expectedHash {
-		conn.WriteHeader(http.StatusForbidden)
-		fmt.Fprintf(conn, "Signature fail.")
+		rw.WriteHeader(http.StatusForbidden)
+		fmt.Fprintf(rw, "Signature fail.")
 		return
 	}
 
@@ -71,32 +76,34 @@ func HandleGarage(conn http.ResponseWriter, req *http.Request) {
 	defer lastOpenMutex.Unlock()
 	now := time.Now()
 	if lastOpenTime.After(now.Add(10 * time.Second)) {
-		conn.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(conn, "Too soon, considering this a dup.")
+		rw.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(rw, "Too soon, considering this a dup.")
 		return
+
 	}
 	lastOpenTime = now
 
-	fmt.Println("Opening garage door...")
-	if *altBin != "" {
-		err = exec.Command(*altBin).Run()
+	log.Printf("Opening garage door...")
+	if openGarage != nil {
+		err = openGarage()
 	} else {
-		err = exec.Command(*heyUPath, "on", *x10Unit).Run()
+		if *altBin == "" {
+			err = errors.New("no togglebin command specified.")
+		} else {
+			err = exec.Command(*altBin).Run()
+		}
 	}
 	if err != nil {
-		GarageOpenError(conn, err)
+		garageOpenError(rw, err)
 		return
 	}
 
-	fmt.Fprint(conn, "Opened.")
-	fmt.Printf("Garage opened at %v from %v\n",
-		time.Now(),
-		req.RemoteAddr)
-
+	fmt.Fprint(rw, "Opened.")
+	log.Printf("Garage opened from %v\n", req.RemoteAddr)
 }
 
-func HandleRoot(conn http.ResponseWriter, req *http.Request) {
-	fmt.Fprintf(conn, `
+func handleRoot(rw http.ResponseWriter, req *http.Request) {
+	fmt.Fprintf(rw, `
 Welcome to the 
 <a href='http://github.com/bradfitz/android-garage-opener'>
 Android garage door opener</a>
@@ -114,8 +121,8 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", HandleRoot)
-	mux.HandleFunc("/garage", HandleGarage)
+	mux.HandleFunc("/", handleRoot)
+	mux.HandleFunc("/garage", handleGarage)
 
 	fmt.Printf("Starting to listen on http://%v/\n", *listen)
 	err := http.ListenAndServe(*listen, mux)
