@@ -3,10 +3,14 @@ motorcycle.
 
 Background blog posts:
 
-1) http://brad.livejournal.com/2394220.html
+  - http://brad.livejournal.com/2394220.html
+  - http://brad.livejournal.com/2394707.html
 
-2) http://brad.livejournal.com/2394707.html
+Some laters videos with newer hardware:
 
-To use this, you need both the app on your phone, as well as the server
-in your house to actually open the garage door, with the necessary X10
-hardware.  See server/README-hardware.txt for details.
+  - https://plus.google.com/u/0/115863474911002159675/posts/84h5DbJPTGs
+  - https://plus.google.com/u/0/115863474911002159675/posts/j5FeJpASEXx
+
+To use this, you need both the app on your phone, as well as the
+hardware connected to your garage door. See server/README-hardware.txt
+for details.
