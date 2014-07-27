@@ -103,11 +103,17 @@ func handleGarage(rw http.ResponseWriter, req *http.Request) {
 }
 
 func handleRoot(rw http.ResponseWriter, req *http.Request) {
-	fmt.Fprintf(rw, `
+	fmt.Fprintf(rw, `<html><head>
+<title>garage opener</title>
+</head>
+<body>
 Welcome to the 
 <a href='http://github.com/bradfitz/android-garage-opener'>
 Android garage door opener</a>
-server.`)
+server.
+</body>
+</html>
+`)
 }
 
 func main() {
