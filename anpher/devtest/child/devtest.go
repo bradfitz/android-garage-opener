@@ -13,7 +13,7 @@ type garageTestApp struct {
 }
 
 func (a *garageTestApp) HandleEvent(ctx *anpher.Ctx, evt anpher.Event) {
-	ctx.Logf("Got event: %s\n", evt)  // to logcat
+	ctx.Logf("Got event: %s\n", evt) // to logcat
 
 	if le, ok := evt.(*anpher.LifecycleEvent); ok {
 		if le.Event == "create" {

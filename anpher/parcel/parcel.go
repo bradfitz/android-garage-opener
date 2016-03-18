@@ -13,10 +13,10 @@
 package parcel
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"os"
-	"bufio"
 	"unsafe"
 )
 
